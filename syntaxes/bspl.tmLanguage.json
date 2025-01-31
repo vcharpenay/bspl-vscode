@@ -3,25 +3,120 @@
 	"name": "BSPL",
 	"patterns": [
 		{
+			"name": "entity.name.class",
+			"match": "protocol"
+		},
+		{
 			"include": "#symbols"
 		},
 		{
-			"include": "#keywords"
+			"include": "#comments"
 		},
 		{
-			"include": "#adornments"
+			"name": "protocol",
+			"begin": "\\{",
+			"end": "\\}",
+			"patterns": [
+				{
+					"include": "#comments"
+				},
+				{
+					"name": "protocol.roles",
+					"begin": "roles",
+					"end": "$",
+					"beginCaptures": {
+						"0": {
+							"name": "keyword"
+						}
+					},
+					"patterns": [
+						{ "include": "#symbols" },
+						{ "include": "#comments" }
+					]
+				},
+				{
+					"name": "protocol.parameters",
+					"begin": "parameters",
+					"end": "$",
+					"beginCaptures": {
+						"0": {
+							"name": "keyword"
+						}
+					},
+					"patterns": [
+						{ "include": "#symbols" },
+						{ "include": "#adorment" },
+						{ "include": "#comments" }
+					]
+				},
+				{
+					"name": "protocol.private",
+					"begin": "private",
+					"end": "$",
+					"beginCaptures": {
+						"0": {
+							"name": "keyword"
+						}
+					},
+					"patterns": [
+						{ "include": "#symbols" },
+						{ "include": "#adorment" },
+						{ "include": "#comments" }
+					]
+				},
+				{
+					"name": "protocol.message",
+					"begin": "([\\w@>-]+)\\s*(->|→|↦)\\s*([\\w@>-]+)\\s*:",
+					"end": "$",
+					"beginCaptures": {
+						"1": {
+							"name": "variable.name"
+						},
+						"2": {
+							"name": "keyword.other"
+						},
+						"3": {
+							"name": "variable.name"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#symbols"
+						},
+						{
+							"name": "protocol.message.body",
+							"begin": "\\[",
+							"end": "\\]",
+							"patterns": [
+								{ "include": "#adornments" },
+								{ "include": "#symbols" }
+							]
+						},
+						{
+							"include": "#comments"
+						}
+					]
+				}
+			]
 		}
 	],
 	"repository": {
-		"keywords": {
+		"symbols": {
 			"patterns": [{
-				"name": "keyword.control",
-				"match": "\\b(roles|parameters|private)\\b"
+				"name": "variable.name",
+				"match": "[\\w@>-]+"
+			}]
+		},
+		"comments": {
+			"patterns": [{
+				"name": "comment.line.double-slash",
+				"begin": "//",
+				"end": "$"
 			}]
 		},
 		"adornments": {
 			"patterns": [{
-				"name": "keyword",
+				"name": "keyword.control",
 				"match": "\\b(out|in|nil|any|opt)\\b"
 			}]
 		}
