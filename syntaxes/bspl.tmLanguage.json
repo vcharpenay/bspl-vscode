@@ -1,0 +1,30 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "BSPL",
+	"patterns": [
+		{
+			"include": "#symbols"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#adornments"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control",
+				"match": "\\b(roles|parameters|private)\\b"
+			}]
+		},
+		"adornments": {
+			"patterns": [{
+				"name": "keyword",
+				"match": "\\b(out|in|nil|any|opt)\\b"
+			}]
+		}
+	},
+	"scopeName": "source.bspl"
+}

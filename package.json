@@ -1,0 +1,25 @@
+{
+  "name": "bspl",
+  "displayName": "BSPL",
+  "description": "BSPL language features in VS Code",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "bspl",
+      "aliases": ["BSPL", "bspl"],
+      "extensions": [".bspl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "bspl",
+      "scopeName": "source.bspl",
+      "path": "./syntaxes/bspl.tmLanguage.json"
+    }]
+  }
+}
