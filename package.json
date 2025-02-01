@@ -9,6 +9,8 @@
   "categories": [
     "Programming Languages"
   ],
+  "repository": "https://github.com/vcharpenay/bspl-vscode",
+  "main": "./src/bspl.js",
   "contributes": {
     "languages": [{
       "id": "bspl",
