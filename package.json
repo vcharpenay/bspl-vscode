@@ -1,8 +1,10 @@
 {
-  "name": "bspl",
+  "name": "bspl-vscode",
   "displayName": "BSPL",
   "description": "BSPL language features in VS Code",
   "version": "0.1.0",
+  "publisher": "vcharpenay",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.96.0"
   },
