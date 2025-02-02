@@ -5,6 +5,10 @@ const tokenTypes = ['class', 'property', 'parameter', 'struct', 'variable'];
 const tokenModifiers = ['declaration'];
 const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
 
+function removeLineComments(txt) {
+    return txt.replaceAll(/\/\/.*(\r?\n)/g, '$1')
+}
+
 function collectTokens(def, ctx) {
     if (def.location) return [[def, ctx]]
     if (!(def.type || (def instanceof Array))) return []
@@ -57,7 +61,8 @@ const STP = function() {}
  * @returns a list of tokens and their index in the document
  */
 STP.prototype.provideDocumentSemanticTokens = function(document) {
-    spec = parser.parse(document.getText())
+    txt = removeLineComments(document.getText())
+    spec = parser.parse(txt)
 
     const tokensBuilder = new vscode.SemanticTokensBuilder(legend)
 
