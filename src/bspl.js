@@ -16,11 +16,51 @@ function collectTokens(def, ctx) {
     if (def.location) return [[def, ctx]]
     if (!(def.type || (def instanceof Array))) return []
 
-    if (def.type) ctx = ctx.concat(def.type)
+    return Object.entries(def)
+        .filter(([_, val]) => val)
+        .map(([key, val]) => collectTokens(val, ctx.concat([key]))).flat()
+}
 
-    return Object.values(def)
-        .filter(val => val)
-        .map(val => collectTokens(val, ctx)).flat()
+function getHierarchy(root, ctx) {
+    if (ctx.length == 0) return [root]
+
+    let child = root[ctx[0]]
+    let head = root instanceof Array ? [] : [root]
+
+    return getHierarchy(child, ctx.slice(1)).concat(head)
+}
+
+function isDeclaration(spec, ctx) {
+    let h = getHierarchy(spec, ctx)
+
+    let parent = h[1]
+
+    switch (parent.type) {
+        case 'protocol': return true
+        case 'protocolReference': return false
+        case 'role': return h.length == 3
+        case 'parameter': return h.length == 3
+        case 'message': return true
+        default: return false
+    }
+}
+
+function buildIndex(spec, tokens) {
+    let symbolIdx = {}
+
+    tokens.forEach(([t, ctx]) => {
+        let s = t.symbol
+
+        if (!symbolIdx[s])
+            symbolIdx[s] = { declaration: null, references: [] }
+
+        if (isDeclaration(spec, ctx)) symbolIdx[s].declaration = t
+        else symbolIdx[s].references.push(t)
+    })
+
+    // TODO sort references by location
+
+    return symbolIdx
 }
 
 function buildRange(location) {
@@ -33,15 +73,17 @@ function buildRange(location) {
     )
 }
 
-function getTokenType(ctx) {
-    let last = ctx[ctx.length - 1]
+function getTokenType(spec, ctx) {
+    let h = getHierarchy(spec, ctx)
 
-    switch (last) {
+    let parent = h[1]
+
+    switch (parent.type) {
         case 'protocol': return 'class'
         case 'protocolReference': return 'class'
         case 'role': return 'property'
         case 'parameter': return 'parameter'
-        case 'message': return 'struct'
+        case 'message': return 'function'
         default: return 'variable'
     }
 }
@@ -49,13 +91,13 @@ function getTokenType(ctx) {
 ////////////////////////////////////////////// VS Code interfaces implementation
 
 /**
- * Semantic Token Provider for BSPL.
+ * Semantic Token Provider
  * 
  * See https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide
  */
 function STP() {
     this.legend = new vscode.SemanticTokensLegend(
-        ['class', 'property', 'parameter', 'struct', 'variable'],
+        ['class', 'property', 'parameter', 'function', 'variable'],
         ['declaration']
     )
 }
@@ -65,7 +107,7 @@ function STP() {
  * - protocol name (~class)
  * - role (~property)
  * - parameter (~parameter)
- * - message type (~struct)
+ * - message type (~function)
  * 
  * @param {*} document 
  * @returns a list of tokens and their index in the document
@@ -75,18 +117,53 @@ STP.prototype.provideDocumentSemanticTokens = function(document) {
 
     const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend)
 
-    collectTokens(spec, []).forEach(([token, ctx]) => {
-        tokensBuilder.push(buildRange(token.location), getTokenType(ctx), [])
+    collectTokens(spec, []).forEach(([t, ctx]) => {
+        tokensBuilder.push(buildRange(t.location), getTokenType(spec, ctx), [])
         // TODO add 'declaration' modifier depending on context
     })
 
     return tokensBuilder.build()
 }
 
+/**
+ * Definition Provider
+ * 
+ * See https://code.visualstudio.com/api/language-extensions/programmatic-language-features#show-definitions-of-a-symbol
+ */
+function DP() {}
+
+DP.prototype.provideDefinition = function(document, position, token) {
+    // spec = getSpecification(document)
+
+    // TODO
+
+    // return vscode.Location
+}
+
 function checkSyntax(document, diagnostics) {
+    let diags = []
+
     try {
-        spec = getSpecification(document)
-        diagnostics.delete(document.uri)
+        let spec = getSpecification(document)
+        let tokens = collectTokens(spec, [])
+
+        let idx = buildIndex(spec, tokens)
+
+        Object.keys(idx).forEach(symbol => {
+            if (!idx[symbol].declaration) {
+                let firstRef = idx[symbol].references[0]
+
+                let diag = new vscode.Diagnostic(
+                    buildRange(firstRef.location),
+                    `Symbol ${symbol} is never declared`,
+                    vscode.DiagnosticSeverity.Warning
+                )
+
+                diags.push(diag)
+            }
+        })
+
+        // TODO check every in parameter is output somewhere
     } catch (e) {
         let diag = new vscode.Diagnostic(
             buildRange(e.location),
@@ -94,22 +171,28 @@ function checkSyntax(document, diagnostics) {
             vscode.DiagnosticSeverity.Error
         )
 
-        diagnostics.set(document.uri, [diag])
+        diags.push(diag)
     }
+
+    diagnostics.set(document.uri, diags)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const stp = new STP()
-
-const diagnostics = vscode.languages.createDiagnosticCollection('bspl')
-
 function activate(context) {
+    const selector = { language: 'bspl', scheme: 'file' }
+
+    const stp = new STP()
+    const dp = new DP()
+    
+    const diagnostics = vscode.languages.createDiagnosticCollection('bspl')
+
     let disposables = [
         vscode.languages.registerDocumentSemanticTokensProvider(
-            { language: 'bspl', scheme: 'file' },
-            stp,
-            stp.legend
+            selector, stp, stp.legend
+        ),
+        vscode.languages.registerDefinitionProvider(
+            selector, dp
         ),
         diagnostics
     ]
