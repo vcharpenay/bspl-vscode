@@ -5,5 +5,6 @@ This extension provides language features for BSPL, the [Blindingly Simple Proto
 ## Features
 
 - syntax highlight
-- syntax validation and linting (TODO)
+- syntax validation
+- linting (TODO)
 - protocol verification (TODO)

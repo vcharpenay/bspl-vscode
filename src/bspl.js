@@ -1,9 +1,12 @@
 const vscode = require('vscode')
 const parser = require('./parser.js')
 
-const tokenTypes = ['class', 'property', 'parameter', 'struct', 'variable'];
-const tokenModifiers = ['declaration'];
-const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
+//////////////////////////////////////////////////////////////////////// helpers
+
+function getSpecification(document) {
+    txt = removeLineComments(document.getText())
+    return parser.parse(txt)
+}
 
 function removeLineComments(txt) {
     return txt.replaceAll(/\/\/.*(\r?\n)/g, '$1')
@@ -20,9 +23,9 @@ function collectTokens(def, ctx) {
         .map(val => collectTokens(val, ctx)).flat()
 }
 
-function buildRange(token) {
-    let start = token.location.start
-    let end = token.location.end
+function buildRange(location) {
+    let start = location.start
+    let end = location.end
 
     return new vscode.Range(
         new vscode.Position(start.line - 1, start.column - 1),
@@ -43,12 +46,19 @@ function getTokenType(ctx) {
     }
 }
 
+////////////////////////////////////////////// VS Code interfaces implementation
+
 /**
  * Semantic Token Provider for BSPL.
  * 
  * See https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide
  */
-const STP = function() {}
+function STP() {
+    this.legend = new vscode.SemanticTokensLegend(
+        ['class', 'property', 'parameter', 'struct', 'variable'],
+        ['declaration']
+    )
+}
 
 /**
  * Parse the BSPL document to identify tokens:
@@ -61,27 +71,56 @@ const STP = function() {}
  * @returns a list of tokens and their index in the document
  */
 STP.prototype.provideDocumentSemanticTokens = function(document) {
-    txt = removeLineComments(document.getText())
-    spec = parser.parse(txt)
+    let spec = getSpecification(document)
 
-    const tokensBuilder = new vscode.SemanticTokensBuilder(legend)
+    const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend)
 
     collectTokens(spec, []).forEach(([token, ctx]) => {
-        tokensBuilder.push(buildRange(token), getTokenType(ctx), [])
+        tokensBuilder.push(buildRange(token.location), getTokenType(ctx), [])
         // TODO add 'declaration' modifier depending on context
     })
 
     return tokensBuilder.build()
 }
 
-function activate(context) {
-	let d = vscode.languages.registerDocumentSemanticTokensProvider(
-        { language: 'bspl', scheme: 'file' },
-        new STP(),
-        legend
-    )
+function checkSyntax(document, diagnostics) {
+    try {
+        spec = getSpecification(document)
+        diagnostics.delete(document.uri)
+    } catch (e) {
+        let diag = new vscode.Diagnostic(
+            buildRange(e.location),
+            e.message,
+            vscode.DiagnosticSeverity.Error
+        )
 
-	context.subscriptions.push(d)
+        diagnostics.set(document.uri, [diag])
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+const stp = new STP()
+
+const diagnostics = vscode.languages.createDiagnosticCollection('bspl')
+
+function activate(context) {
+    let disposables = [
+        vscode.languages.registerDocumentSemanticTokensProvider(
+            { language: 'bspl', scheme: 'file' },
+            stp,
+            stp.legend
+        ),
+        diagnostics
+    ]
+
+    disposables.forEach(d => context.subscriptions.push(d))
+
+    vscode.workspace.onDidSaveTextDocument((document) => {
+        if (document.languageId === 'bspl' && document.uri.scheme === 'file') {
+            checkSyntax(document, diagnostics)
+        }
+    });
 }
 
 function deactivate() {}
