@@ -1,4 +1,6 @@
 .vscode/**
 .vscode-test/**
 .gitignore
+images/*.odg
+src/*.peggy
 vsc-extension-quickstart.md
